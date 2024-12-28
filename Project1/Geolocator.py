@@ -1,102 +1,98 @@
+#Name: Geolocator.py
+#Author: DSkretta
+#License: MIT
+#Github: https://github.com/dskretta/Infosec-Python-Projects/blob/main/Project1/Geolocator.py
+#Description: This script runs IP addresses through the ip-api.com API for geolocation to print the owner and location
+
 import requests
 from ipwhois import IPWhois
+import ipaddress
+import argparse
 
-# Define the function to get geolocation information for an IP address
+# Function to get geolocation information for an IP address
 def get_geolocation(ip):
     try:
-        # Send a request to the IP-API to lookup the address
         response = requests.get(f"http://ip-api.com/json/{ip}")
         geo_data = response.json()
-
-        # Check if the response indicates success
         if geo_data['status'] == 'fail':
             return f"Geolocation failed: {geo_data['message']}"
-
-        # Otherwise, return city and country information
         return f"{geo_data['city']}, {geo_data['country']}"
     except Exception as e:
-        #Handle any errors during the API call
         return f"Geolocation lookup failed: {e}"
 
-# Define the function to get WHOIS ownership data for an IP address
+# Function to get WHOIS ownership information for an IP address
 def get_whois_info(ip):
     try:
-        #Perform a WHOIS lookup using the ipwhois library
         whois_data = IPWhois(ip).lookup_whois()
-        return whois_data.get('asn_description', 'N/A') # Return ASN description or N/A
+        return whois_data.get('asn_description', 'N/A')
     except Exception as e:
-        # Handle errors during WHOIS lookup
         return f"WHOIS lookup failed: {e}"
 
 # Function to process a single IP address
-def process_single_ip():
-    ip_address = input("Enter the IP address to lookup: ").strip()
-    if not ip_address:
-        print("No IP address provided. Please re-enter address")
-        return # Exit the function if no input is given
-    
-    # Get geolocation and WHOIS information
-    geo_info = get_geolocation(ip_address)
-    whois_info = get_whois_info(ip_address)
-
-    # Print the results
-    print("\nResults for the IP address:")
-    print(f"IP Address: {ip_address}")
+def process_single_ip(ip):
+    print(f"\nProcessing IP Address: {ip}")
+    geo_info = get_geolocation(ip)
+    whois_info = get_whois_info(ip)
+    print(f"IP Address: {ip}")
     print(f"Ownership Info: {whois_info}")
     print(f"Geolocation Info: {geo_info}")
     print("-" * 40)
 
-# Function to process IP Addresses from a file
-def process_ip_file():
-    file_path = input("Enter the file path containing IP Addresses: ").strip()
-
+# Function to process a CIDR range
+def process_cidr(cidr):
     try:
-        # Open the file and read each line
+        network = ipaddress.ip_network(cidr, strict=False)
+        print(f"\nProcessing CIDR range: {cidr}")
+        for ip in network:
+            process_single_ip(str(ip))
+    except ValueError as e:
+        print(f"Invalid CIDR notation: {cidr}. Error: {e}")
+
+# Function to read through a mixed file of IPs and CIDR ranges
+def process_mixed_file(file_path):
+    try:
         with open(file_path, 'r') as file:
-            ip_addresses = file.readlines()
+            lines = file.readlines()
 
-        if not ip_addresses:
-            print("The file is empty. Please provide a valid file.")
-            return # Exit if the file is empty
-        
-        # Look through each IP address in the file
-        for ip in ip_addresses:
-            ip = ip.strip() # Sanitize data
-            if not ip:
-                continue # Skip empty lines
+        for line in lines:
+            input_data = line.strip()
+            if not input_data:
+                continue # Skip any empty lines
 
-            # Get geolocation and WHOIS data for the IP's
-            print(f"\nProcessing IP: {ip}")
-            geo_info = get_geolocation(ip)
-            whois_info = get_whois_info(ip)
-
-            # Print results
-            print(f"IP Address: {ip}")
-            print(f"Ownership Info: {whois_info}")
-            print(f"Geolocation Info: {geo_info}")
-            print("-" * 40)
+            if '/' in input_data: # CIDR range
+                process_cidr(input_data)
+            else: # Single IP
+                process_single_ip(input_data)
 
     except FileNotFoundError:
-        print(f"Error: The file '{file_path}' was not found.")
+        print(f"Error: File '{file_path}' not found.")
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
 
-# Main function to provide user options and call the appropriate functions
+# Main function to handle command-line arguments
 def main():
-    print("Welcome to my IP lookup tool!")
-    print("1. Lookup a single IP address")
-    print("2. Lookup IP addresses from a file")
+    parser = argparse.ArgumentParser(description="IP address and CIDR range Lookup Tool")
+    parser.add_argument(
+        "-c", "--check", help="Specify a single IP address or CIDR range to lookup", type=str
+    )
+    parser.add_argument(
+        "-f", "--file", help="Specify a file containing IP addresses and CIDR ranges to lookup", type=str
+    )
 
-    # Ask the user to choose which option
-    choice = input("Enter your choice (1 or 2): ").strip()
+    args = parser.parse_args()
 
-    if choice == '1':
-        process_single_ip() # Call the single IP processing function
-    elif choice == '2':
-        process_ip_file() # Call the file processing function
+    if args.check:
+        input_data = args.check.strip()
+        if '/' in input_data: # CIDR range
+            process_cidr(input_data)
+        else: # Single IP address
+            process_single_ip(input_data)
+    elif args.file:
+        process_mixed_file(args.file.strip())
     else:
-        print("Invalid option. Please enter 1 or 2.")
+        print("Error: Please specify either -c for a single lookup. or -f for a file lookup.")
+        parser.print_help()
 
-# Run the main function when the script is executed
+# Run the main function
 if __name__ == "__main__":
     main()
