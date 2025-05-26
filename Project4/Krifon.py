@@ -2,26 +2,38 @@ import os
 
 # list of keywords that suggest sensitive files
 SENSITIVE_KEYWORDS = [
-    "password", "passwd", "credentials", "creds", "secret",
+    "username", "password", "passwd", "credentials", "creds", "secret",
     "web.config", "sitelist", "auth", "account", "login"
+    "auth," "token", "apikey", "api", "login", "auth", 
 ]
 
-# main searching functionality
-def find_sensitive_filenames(base_dir, keywords):
-    print(f"Searching in: {base_dir}")
+def find_sensitive_content(base_dir, keywords):
+    print(f"\nScanning file contents for sensitive strings...")
     for root, dirs, files in os.walk(base_dir):
         for name in files:
+            path = os.path.join(root, name)
             lower_name = name.lower()
+
+            # --- Filename match ---
             for keyword in keywords:
                 if keyword in lower_name:
-                    full_path = os.path.join(root, name)
-                    print(f"[!] Found potentially sensitive file: {full_path}")
-                    break # Do not print the same file mutliple times
+                    print(f"[FILENAME MATH] {path}")
+                    break
 
-
+            # --- Content match ---
+            try:
+                with open(path, "r", errors="ignore") as f:
+                    for i, line in enumerate(f):
+                        for keyword in keywords:
+                            if keyword.lower() in line.lower():
+                                print(f"[!] Keyword ' {keyword}' found in: {path} (line {i+1})")
+                                break
+            except Exception as e:
+                # skip unreadable files
+                continue
 if __name__ == "__main__":
     target_dir = input("Enter path to directory: ").strip()
     if not os.path.isdir(target_dir):
         print("That path does not exist or is not a directory.")
     else:
-        find_sensitive_filenames(target_dir, SENSITIVE_KEYWORDS)
+        find_sensitive_content(target_dir, SENSITIVE_KEYWORDS)
