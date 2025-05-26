@@ -6,6 +6,8 @@
 
 import requests
 import socket
+import argparse
+import sys
 
 # Manually split a url into scheme (http/https) and domain
 def split_scheme_domain(url):
@@ -74,6 +76,32 @@ def process_url_list(file_path):
         for url in urls:
             check_headers(url)
 
-# Call the main function with your list of URLs
-process_url_list("urls.txt")
+# Process multiple URLs from a file
+def process_url_list(file_path):
+    try:
+        with open(file_path, "r") as f:
+            urls = [line.strip() for line in f if line.strip()]
+            for url in urls:
+                check_headers(url)
+    except FileNotFoundError:
+        print(f" File not found: {file_path}")
+        sys.exit(1)
 
+# Main function to handle CLI flags
+def main():
+    parser = argparse.ArgumentParser(description="Check web headers for common security issues.")
+    parser.add_argument("--url", help="Specify a single URL to check")
+    parser.add_argument("--file", help="Provide a file with multiple URLs (one per line)")
+
+    args = parser.parse_args()
+
+    if args.url:
+        check_headers(args.url)
+    elif args.file:
+        process_url_list(args.file)
+    else:
+        print("You must provide either --url or --file")
+        parser.print_help()
+
+if __name__ == "__main__":
+    main()
