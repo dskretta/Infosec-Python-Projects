@@ -1,3 +1,9 @@
+#Name: Bruteforce.py
+#Author: DSkretta
+#License: MIT
+#Github: https://github.com/dskretta/Infosec-Python-Projects/blob/main/Project3/Bruteforce.py
+#Description: This script is used to bruteforce SSH, it includes username and password file input capabilities and more
+
 import paramiko
 import argparse
 import time
