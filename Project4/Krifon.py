@@ -6,6 +6,11 @@
 
 import os
 import argparse
+from tqdm import tqdm
+
+GREEN = "\033[92m"
+BLUE = "\033[94m"
+RESET = "\033[0m"
 
 # list of default keywords that suggest sensitive files
 SENSITIVE_KEYWORDS = [
@@ -33,25 +38,29 @@ def scan_filenames(base_dir, keywords):
             lower_name = name.lower()
             for keyword in keywords:
                 if keyword in lower_name:
-                    print(f"[MATCH] {os.path.join(root, name)}")
+                    tqdm.write(f"{GREEN}[MATCH]{RESET} {BLUE}{os.path.join(root, name)} {RESET}")
                     break
 
 
 # Scan File contents
-def scan_contents(base_dir, keywords):
+def scan_content(base_dir, keywords):
     print("\n[CONTENT SCAN]")
+
+    # count the total files first
+    file_paths = []
     for root, dirs, files in os.walk(base_dir):
         for name in files:
-            path = os.path.join(root, name)
-            try:
-                with open(path, "r", errors="ignore") as f:
-                    for i, line in enumerate(f):
-                        for keyword in keywords:
-                            if keyword in line.lower():
-                                print(f"[MATCH] {path} (line {i+1}): {line.strip()}")
-                                break
-            except Exception:
-                continue
+            file_paths.append(os.path.join(root, name))
+
+    for path in tqdm(file_paths, desc="Scanning files"):
+        try:
+            with open(path, "r", errors="ignore") as f:
+                for i, line in enumerate(f):
+                    for keyword in keywords:
+                        if keyword in line.lower():
+                            tqdm.write(f"{GREEN}[MATCH]{RESET} {BLUE}{path}{RESET} (line {i+1}): {GREEN}{line.strip()}{RESET}")
+        except Exception:
+            continue
 
 # Calculate share size
 def summarize_share_size(base_dir):
@@ -94,8 +103,8 @@ def main():
 
     if args.scan_names:
         scan_filenames(args.path, keywords)
-    if args.scan_contents:
-        scan_contents(args.path, keywords)
+    if args.scan_content:
+        scan_content(args.path, keywords)
     if args.scan_size:
         summarize_share_size(args.path)
 
