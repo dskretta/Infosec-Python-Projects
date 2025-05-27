@@ -11,7 +11,6 @@ from tqdm import tqdm
 GREEN = "\033[92m"
 BLUE = "\033[94m"
 RED = "\033[91m"
-
 RESET = "\033[0m"
 
 
@@ -19,7 +18,7 @@ RESET = "\033[0m"
 SENSITIVE_KEYWORDS = [
     "username", "password", "passwd", "credentials", "creds", "secret",
     "web.config", "sitelist", "auth", "account", "login",
-    "auth", "token", "apikey", "api", "login", "auth", 
+     "token", "apikey", "api",  "auth", 
 ]
 
 # Load custom keywords from a file (override default)
@@ -33,10 +32,20 @@ def load_keywords(default_keywords, keyword_file):
             return default_keywords
     return default_keywords
 
+# Utility: get the currect depth of directory
+def get_depth(base, target):
+    return os.path.relpath(target, base).count(os.sep)
+
 # Scan filenames
-def scan_filenames(base_dir, keywords):
+def scan_filenames(base_dir, keywords, args):
     print(f"\n[FILENAME SCAN]")
     for root, dirs, files in os.walk(base_dir):
+        if args.no_recursive:
+            dirs.clear()
+        elif args.depth_limit is not None:
+            if get_depth(base_dir, root) >= args.depth_limit:
+                dirs.clear()
+
         for name in files:
             lower_name = name.lower()
             for keyword in keywords:
@@ -46,12 +55,18 @@ def scan_filenames(base_dir, keywords):
 
 
 # Scan File contents
-def scan_content(base_dir, keywords):
+def scan_content(base_dir, keywords, args):
     print("\n[CONTENT SCAN]")
 
     # count the total files first
     file_paths = []
     for root, dirs, files in os.walk(base_dir):
+        if args.no_recursive:
+            dirs.clear()
+        elif args.depth_limit is not None:
+            if get_depth(base_dir, root) >= args.depth_limit:
+                dirs.clear()
+
         for name in files:
             file_paths.append(os.path.join(root, name))
 
@@ -72,12 +87,18 @@ def scan_content(base_dir, keywords):
         pbar.set_postfix(matches=matches)
 
 # Calculate share size
-def summarize_share_size(base_dir):
+def summarize_share_size(base_dir, args):
     print(f"\n{RED}[SIZE SCAN]{RESET}")
     total_bytes = 0
     file_count = 0
 
     for root, dirs, files in os.walk(base_dir):
+        if args.no_recursive:
+            dirs.clear()
+        elif args.depth_limit is not None:
+            if get_depth(base_dir, root) >= args.depth_limit:
+                dirs.clear()
+
         for name in files:
             path = os.path.join(root, name)
             try:
@@ -91,15 +112,14 @@ def summarize_share_size(base_dir):
 
 # Entry point
 def main():
-    parser = argparse.ArgumentParser(description="Pilfer for Passwords: SMB/Local File Scanner")
-
+    parser = argparse.ArgumentParser(description="Looking for secrets: SMB/Local File Scanner")
     parser.add_argument("--path", required=True, help="Path to directory to scan")
-
     parser.add_argument("--scan-names", action="store_true", help="scan filenames for sensitive keywords")
     parser.add_argument("--scan-content", action="store_true", help="Scan file contents for sensitive keywords")
     parser.add_argument("--scan-size", action="store_true", help="Summarize size and count of all files")
-
     parser.add_argument("--keyword-file", help="File with custom keywords (one per line)")
+    parser.add_argument("--no-recursive", action="store_true", help="Disable recursive scanning (only scan top level)")
+    parser.add_argument("--depth-limit", type=int, help="Limit recursion depth (e.g., 2 = base directory + 2 subdirectory)")
 
 
     args = parser.parse_args()
@@ -111,11 +131,11 @@ def main():
     keywords = load_keywords(SENSITIVE_KEYWORDS, args.keyword_file)
 
     if args.scan_names:
-        scan_filenames(args.path, keywords)
+        scan_filenames(args.path, keywords, args)
     if args.scan_content:
-        scan_content(args.path, keywords)
+        scan_content(args.path, keywords, args)
     if args.scan_size:
-        summarize_share_size(args.path)
+        summarize_share_size(args.path, args)
 
 
     if not (args.scan_names or args.scan_content or args.scan_size):
