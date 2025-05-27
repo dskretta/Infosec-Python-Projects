@@ -1,19 +1,29 @@
+#Name: Krifon.py
+#Author: DSkretta
+#License: MIT
+#Github: https://github.com/dskretta/Infosec-Python-Projects/blob/main/Project4/Krifon.py
+#Description: This script is used to search for sensitive keywords in directories as well as list the size of them.
+
 import os
 import argparse
 
 # list of default keywords that suggest sensitive files
 SENSITIVE_KEYWORDS = [
     "username", "password", "passwd", "credentials", "creds", "secret",
-    "web.config", "sitelist", "auth", "account", "login"
-    "auth," "token", "apikey", "api", "login", "auth", 
+    "web.config", "sitelist", "auth", "account", "login",
+    "auth", "token", "apikey", "api", "login", "auth", 
 ]
 
 # Load custom keywords from a file (override default)
 def load_keywords(default_keywords, keyword_file):
-    if keyword_file and os.path.isfile(keyword_file):
-        with open(keyword_file, "r") as f:
-            return [line.strip().lower() for line in f if line.strip()]
-        return default_keywords
+    if keyword_file:
+        if os.path.isfile(keyword_file):
+            with open(keyword_file, "r") as f:
+                return [line.strip().lower() for line in f if line.strip()]
+        else:
+            print(f"Keyword file not found: {keyword_file}")
+            return default_keywords
+    return default_keywords
 
 # Scan filenames
 def scan_filenames(base_dir, keywords):
@@ -90,7 +100,7 @@ def main():
         summarize_share_size(args.path)
 
 
-    if not (args.scan_name or args.scan_content or args.scan_size):
+    if not (args.scan_names or args.scan_content or args.scan_size):
         print("No scan type selected. Use one or more of: --scan-names, --scan-content, --scan-size")
 
 if __name__ == "__main__":
