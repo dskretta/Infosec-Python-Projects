@@ -10,7 +10,10 @@ from tqdm import tqdm
 
 GREEN = "\033[92m"
 BLUE = "\033[94m"
+RED = "\033[91m"
+
 RESET = "\033[0m"
+
 
 # list of default keywords that suggest sensitive files
 SENSITIVE_KEYWORDS = [
@@ -52,19 +55,25 @@ def scan_content(base_dir, keywords):
         for name in files:
             file_paths.append(os.path.join(root, name))
 
-    for path in tqdm(file_paths, desc="Scanning files"):
+    # adding a progress bar, that counts the amount of matches
+    matches = 0
+    pbar = tqdm(file_paths, desc=f"{RED}Scanning files{RESET}", unit="file")
+    for path in pbar:    
         try:
             with open(path, "r", errors="ignore") as f:
                 for i, line in enumerate(f):
                     for keyword in keywords:
                         if keyword in line.lower():
+                            matches+= 1
                             tqdm.write(f"{GREEN}[MATCH]{RESET} {BLUE}{path}{RESET} (line {i+1}): {GREEN}{line.strip()}{RESET}")
         except Exception:
             continue
 
+        pbar.set_postfix(matches=matches)
+
 # Calculate share size
 def summarize_share_size(base_dir):
-    print("\n[SIZE SCAN]")
+    print(f"\n{RED}[SIZE SCAN]{RESET}")
     total_bytes = 0
     file_count = 0
 
@@ -77,8 +86,8 @@ def summarize_share_size(base_dir):
             except Exception:
                 continue
 
-    print(f"Files found: {file_count}")
-    print(f"Total size: {total_bytes / (1024**3):.2f} GB")
+    print(f"{GREEN}Files found: {RED}{file_count}{RESET}")
+    print(f"{GREEN}Total size: {RED}{total_bytes / (1024**3):.2f} GB{RESET}")
 
 # Entry point
 def main():
