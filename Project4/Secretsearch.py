@@ -1,7 +1,7 @@
 #Name: Secretsearch.py
 #Author: DSkretta
 #License: MIT
-#Github: https://github.com/dskretta/Infosec-Python-Projects/blob/main/Project4/Krifon.py
+#Github: https://github.com/dskretta/Infosec-Python-Projects/blob/main/Project4/Secretsearch.py
 #Description: This script is used to search for sensitive keywords in directories as well as list the size of them.
 
 import os
