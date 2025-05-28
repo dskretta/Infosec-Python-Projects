@@ -1,12 +1,15 @@
-#Name: Krifon.py
+#Name: Secretsearch.py
 #Author: DSkretta
 #License: MIT
-#Github: https://github.com/dskretta/Infosec-Python-Projects/blob/main/Project4/Secretsearch.py
+#Github: https://github.com/dskretta/Infosec-Python-Projects/blob/main/Project4/Krifon.py
 #Description: This script is used to search for sensitive keywords in directories as well as list the size of them.
 
 import os
 import argparse
 from tqdm import tqdm
+import openpyxl
+import pandas as pd
+
 
 GREEN = "\033[92m"
 BLUE = "\033[94m"
@@ -36,8 +39,22 @@ def load_keywords(default_keywords, keyword_file):
 def get_depth(base, target):
     return os.path.relpath(target, base).count(os.sep)
 
+# Save output to file
+def save_matches(matches, output_file):
+    if output_file:
+        df = pd.DataFrame(matches)
+        if output_file.endswith(".csv"):
+            df.to_csv(output_file, index=False)
+        elif output_file.endswith(".xlsx"):
+            df.to_excel(output_file, index=False)
+        elif output_file.endswith(".txt"):
+            with open(output_file, "w") as f:
+                for match in matches:
+                    f.write(f"{match['type']}: {match['path']}\n")
+        print(f"Output saved to {output_file}")
+
 # Scan filenames
-def scan_filenames(base_dir, keywords, args):
+def scan_filenames(base_dir, keywords, args, match_list):
     print(f"\n[FILENAME SCAN]")
     for root, dirs, files in os.walk(base_dir):
         if args.no_recursive:
@@ -50,12 +67,14 @@ def scan_filenames(base_dir, keywords, args):
             lower_name = name.lower()
             for keyword in keywords:
                 if keyword in lower_name:
-                    tqdm.write(f"{GREEN}[MATCH]{RESET} {BLUE}{os.path.join(root, name)} {RESET}")
+                    full_path = os.path.join(root, name)
+                    tqdm.write(f"{GREEN}[MATCH]{RESET} {BLUE}{full_path} {RESET}")
+                    match_list.append({"type": "filename", "path": full_path, "line": None, "content": None})
                     break
 
 
 # Scan File contents
-def scan_content(base_dir, keywords, args):
+def scan_content(base_dir, keywords, args, match_list):
     print("\n[CONTENT SCAN]")
 
     # count the total files first
@@ -81,9 +100,9 @@ def scan_content(base_dir, keywords, args):
                         if keyword in line.lower():
                             matches+= 1
                             tqdm.write(f"{GREEN}[MATCH]{RESET} {BLUE}{path}{RESET} (line {i+1}): {GREEN}{line.strip()}{RESET}")
+                            match_list.append({"type": "content", "path": path, "line": i+1, "content": line.strip()})
         except Exception:
             continue
-
         pbar.set_postfix(matches=matches)
 
 # Calculate share size
@@ -120,7 +139,7 @@ def main():
     parser.add_argument("--keyword-file", help="File with custom keywords (one per line)")
     parser.add_argument("--no-recursive", action="store_true", help="Disable recursive scanning (only scan top level)")
     parser.add_argument("--depth-limit", type=int, help="Limit recursion depth (e.g., 2 = base directory + 2 subdirectory)")
-
+    parser.add_argument("--output", help="File to save output results (supports .txt, .csv, .xlsx)")
 
     args = parser.parse_args()
 
@@ -129,13 +148,17 @@ def main():
         return
     
     keywords = load_keywords(SENSITIVE_KEYWORDS, args.keyword_file)
+    match_list = []
 
     if args.scan_names:
-        scan_filenames(args.path, keywords, args)
+        scan_filenames(args.path, keywords, args, match_list)
     if args.scan_content:
-        scan_content(args.path, keywords, args)
+        scan_content(args.path, keywords, args, match_list)
     if args.scan_size:
         summarize_share_size(args.path, args)
+
+    if args.output:
+        save_matches(match_list, args.output)
 
 
     if not (args.scan_names or args.scan_content or args.scan_size):
